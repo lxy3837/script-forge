@@ -1,0 +1,178 @@
+/* ===== 流式跟踪步骤卡片样式 ===== */
+
+.st-container {
+    padding: 0.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.st-card {
+    background: var(--bg-panel, #1e1e1e);
+    border: 1px solid var(--border, #333);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+}
+
+.st-card:not(.st-collapsed) {
+    border-color: var(--primary, #007acc);
+}
+
+.st-card-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    gap: 0.5rem;
+    background: var(--bg-header, #252526);
+}
+
+.st-card-header:hover {
+    background: var(--bg-hover, #2a2a2e);
+}
+
+.st-icon {
+    font-size: 0.65rem;
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.st-icon-running { color: var(--primary, #007acc); }
+
+.st-icon-completed { color: var(--success, #4ec9b0); }
+
+.st-icon-failed { color: var(--error, #f44747); }
+
+.st-title {
+    flex: 1;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text, #ccc);
+}
+
+.st-status {
+    font-size: 0.65rem;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.st-status-running {
+    background: rgba(0,122,204,0.15);
+    color: var(--primary, #007acc);
+}
+
+.st-status-completed {
+    background: rgba(78,201,176,0.15);
+    color: var(--success, #4ec9b0);
+}
+
+.st-status-failed {
+    background: rgba(244,71,71,0.15);
+    color: var(--error, #f44747);
+}
+
+.st-arrow {
+    font-size: 0.6rem;
+    color: var(--muted, #666);
+    transition: transform 0.2s;
+    margin-left: 0.25rem;
+}
+
+.st-collapsed .st-arrow {
+    transform: rotate(-90deg);
+}
+
+.st-card-body {
+    padding: 0.6rem 0.75rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.st-collapsed .st-card-body {
+    display: none;
+}
+
+.st-content {
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--text, #ccc);
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.st-content p { margin: 0.3rem 0; }
+
+.st-content h1, .st-content h2, .st-content h3 {
+    margin: 0.6rem 0 0.3rem;
+    font-size: 1rem;
+    color: var(--text-bright, #e0e0e0);
+}
+
+.st-content code {
+    background: var(--bg-code, #2d2d30);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.78rem;
+}
+
+.st-content pre {
+    background: var(--bg-code, #2d2d30);
+    padding: 0.5rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.st-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.st-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.5rem 0;
+}
+
+.st-content th, .st-content td {
+    border: 1px solid var(--border, #444);
+    padding: 0.3rem 0.5rem;
+    text-align: left;
+    font-size: 0.78rem;
+}
+
+.st-content th {
+    background: var(--bg-header, #252526);
+    color: var(--text-bright, #e0e0e0);
+}
+
+/* 闪烁光标 */
+.st-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    background: var(--primary, #007acc);
+    vertical-align: text-bottom;
+    animation: st-blink 0.8s steps(1) infinite;
+}
+
+@keyframes st-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* 步骤指示器（侧边栏用） */
+.st-step-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted, #555); }
+.st-step-dot.st-pulse { animation: st-pulse 1.2s ease-in-out infinite; }
+.st-step-dot.st-completed { background: var(--success, #4ec9b0); }
+.st-step-dot.st-failed { background: var(--error, #f44747); }
+.st-step-dot.st-running { background: var(--primary, #007acc); }
+
+@keyframes st-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0,122,204,0.6); }
+    50% { box-shadow: 0 0 0 6px rgba(0,122,204,0); }
+}

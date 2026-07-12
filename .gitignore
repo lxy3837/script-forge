@@ -1,0 +1,27 @@
+# Build output
+target/
+
+# PDF / generated docs
+*.pdf
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Logs
+logs/
+*.log
+
+# Local data
+data/
+exports/
+workspaces/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Maven wrapper jar (keep .mvn/wrapper/maven-wrapper.properties only)
+.mvn/wrapper/maven-wrapper.jar

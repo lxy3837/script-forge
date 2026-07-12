@@ -1,0 +1,80 @@
+app:
+    disk-space-min-gb: 2
+    export-dir: ./exports
+    max-concurrent-projects: 3
+    max-outline-versions: 3
+    min-chapters-per-outline: 3
+    name: ScriptForge
+    version: 1.0.0
+deepseek:
+    api-key: ${DEEPSEEK_API_KEY:your-api-key-here}
+    base-url: https://api.deepseek.com
+    chat:
+        max-tokens: 32768
+        model: deepseek-v4-pro
+        temperature: 0.7
+        timeout-seconds: 600
+    embedding:
+        model: deepseek-embed
+        timeout-seconds: 30
+    max-retries: 3
+jasypt:
+    encryptor:
+        password: ${JASYPT_ENCRYPTOR_PASSWORD:ScriptForge@2024!}
+logging:
+    file:
+        name: ./logs/script-forge.log
+    level:
+        com:
+            erchuang:
+                scriptforge: DEBUG
+        root: INFO
+server:
+    port: 8080
+    tomcat:
+        threads:
+            max: 50
+            min-spare: 5
+        max-connections: 200
+        connection-timeout: 30s
+        keep-alive-timeout: 15s
+spring:
+    application:
+        name: script-forge
+    datasource:
+        password: ''
+        url: jdbc:h2:file:./data/scriptforge;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+        username: sa
+    h2:
+        console:
+            enabled: false
+            path: ''
+    jackson:
+        date-format: yyyy-MM-dd HH:mm:ss
+        time-zone: Asia/Shanghai
+        serialization:
+            write-dates-as-timestamps: false
+            fail-on-empty-beans: false
+    jpa:
+        hibernate:
+            ddl-auto: update
+            dll-auto: update
+        show-sql: false
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.H2Dialect
+    servlet:
+        multipart:
+            max-file-size: 50MB
+            max-request-size: 100MB
+    thymeleaf:
+        cache: false
+        mode: HTML
+        prefix: classpath:/templates/
+        suffix: .html
+vector-db:
+    dimension: 1024
+    hnsw:
+        ef-construction: 200
+        m: 16
+    index-dir: ./data/lucene-index

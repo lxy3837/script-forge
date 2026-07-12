@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剧本阅览 - ScriptForge</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">
+            <div class="logo-icon">&#9998;</div>
+            <h1>ScriptForge</h1>
+        </div>
+        <nav>
+            <a th:href="@{/}">首页</a>
+            <a th:href="@{/projects/{id}(id=${projectId})}">返回项目</a>
+            <a th:href="@{/knowledge}">知识库</a>
+            <a th:href="@{/config}">系统配置</a>
+        </nav>
+    </header>
+
+    <main class="container-wide">
+        <!-- 顶部信息栏 -->
+        <div class="card card-accent card-sm">
+            <div class="flex-between flex-wrap gap-2">
+                <div>
+                    <h2 style="margin-bottom:0;">&#127917; 剧本阅览</h2>
+                    <span class="text-xs text-muted" id="sv-project-title">加载中...</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <span class="badge badge-primary">步骤 4/6</span>
+                    <!-- 导出选择器 -->
+                    <div class="export-selector" id="export-selector">
+                        <button class="btn btn-primary btn-export-trigger" onclick="toggleExportSelector(this)">
+                            &#128229; 导出剧本
+                        </button>
+                        <div class="export-dropdown-menu">
+                            <button class="export-option" onclick="doExport('MD')">
+                                <span class="format-icon">MD</span>
+                                <span class="format-info">
+                                    <span class="format-name">Markdown</span>
+                                    <span class="format-desc">通用文档格式，可进一步编辑</span>
+                                </span>
+                            </button>
+                            <button class="export-option" onclick="doExport('TXT')">
+                                <span class="format-icon">TXT</span>
+                                <span class="format-info">
+                                    <span class="format-name">纯文本</span>
+                                    <span class="format-desc">通用纯文本格式</span>
+                                </span>
+                            </button>
+                            <button class="export-option" onclick="doExport('SRT')">
+                                <span class="format-icon">SR</span>
+                                <span class="format-info">
+                                    <span class="format-name">字幕文件</span>
+                                    <span class="format-desc">SRT格式，适配视频字幕</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 增量修改入口 -->
+                    <button class="btn btn-outline btn-sm" onclick="showEditPanel()">&#9998; 增量修改</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区：章节导航 + 剧本内容 -->
+        <div class="layout-two-col" id="script-layout">
+            <!-- 左侧章节导航 -->
+            <div class="card card-sm sticky-top" id="chapter-nav-sidebar">
+                <h3>&#128196; 章节导航</h3>
+                <ul class="chapter-nav" id="chapter-nav-list">
+                    <li class="chapter-nav-item text-muted text-sm">加载中...</li>
+                </ul>
+            </div>
+
+            <!-- 右侧剧本内容 -->
+            <div id="script-main-content">
+                <div class="card" id="script-content-card">
+                    <div class="script-content" id="script-content">
+                        <div class="empty-state">
+                            <div class="empty-icon">&#128214;</div>
+                            <p>暂无剧本内容</p>
+                            <p class="text-sm text-muted">启动工作流后，完成剧本生成步骤即可在此查看完整剧本。</p>
+                            <div class="empty-action">
+                                <button class="btn btn-primary btn-sm" onclick="loadScriptContent()">&#128260; 刷新剧本</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 增量修改面板 -->
+                <div class="edit-panel hidden" id="edit-panel">
+                    <div class="edit-panel-header">
+                        <h3>&#9998; 增量修改</h3>
+                        <button class="btn btn-ghost btn-sm" onclick="hideEditPanel()">&#10005;</button>
+                    </div>
+                    <p class="text-sm text-muted mb-2">输入自然语言修改指令，AI将据此调整剧本内容。</p>
+                    <div class="edit-instruction">
+                        <textarea id="edit-instruction" class="edit-textarea"
+                            placeholder="例如：把第一章的结尾改为更悲伤的基调、删除第三幕中关于{角色}的对话、增加一段描述{场景}的旁白..."></textarea>
+                    </div>
+                    <div class="edit-actions">
+                        <button class="btn btn-outline btn-sm" onclick="hideEditPanel()">取消</button>
+                        <button class="btn btn-primary btn-sm" id="btn-submit-edit" onclick="submitEdit(projectId)">&#10003; 提交修改</button>
+                    </div>
+                    <div class="edit-diff hidden" id="edit-diff-preview"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        var projectId = /*[[${projectId}]]*/ 0;
+        var currentChapterIdx = 0;
+        var allChapters = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadScriptProject();
+            loadScriptContent();
+        });
+
+        function loadScriptProject() {
+            fetch('/api/projects/' + projectId)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.code === 0) {
+                        document.getElementById('sv-project-title').textContent =
+                            (data.data.title || '-') + ' | ' + (data.data.gameName || '-');
+                    }
+                });
+        }
+
+        function loadScriptContent() {
+            var contentEl = document.getElementById('script-content');
+            contentEl.innerHTML = '<div class="text-center mt-2"><div class="spinner spinner-lg"></div><p class="text-sm text-muted mt-1">正在加载剧本...</p></div>';
+
+            fetch('/api/projects/' + projectId + '/scripts')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.code === 0 && data.data) {
+                        var script = data.data;
+                        allChapters = script.chapters || [];
+
+                        if (allChapters.length > 0) {
+                            renderChapterNav(allChapters);
+                            renderChapter(0, allChapters[0]);
+                        } else if (script.content) {
+                            // Single content, no chapter split
+                            renderSingleContent(script.content);
+                        } else {
+                            renderEmpty();
+                        }
+                    } else {
+                        renderEmpty();
+                    }
+                })
+                .catch(function(err) {
+                    document.getElementById('script-content').innerHTML =
+                        '<p class="text-danger text-sm">加载失败: ' + err.message + '</p>';
+                });
+        }
+
+        function renderChapterNav(chapters) {
+            var navEl = document.getElementById('chapter-nav-list');
+            var html = '';
+            chapters.forEach(function(ch, idx) {
+                html += '<li class="chapter-nav-item' + (idx === 0 ? ' active' : '') +
+                        '" onclick="navigateChapter(' + idx + ', this)">' +
+                        '<span class="chapter-num">' + (idx + 1) + '</span>' +
+                        '<span>' + escapeHtml(ch.title || '第' + (idx + 1) + '章') + '</span>' +
+                    '</li>';
+            });
+            navEl.innerHTML = html;
+        }
+
+        function navigateChapter(idx, el) {
+            currentChapterIdx = idx;
+
+            // Update nav active state
+            document.querySelectorAll('.chapter-nav-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            if (el) el.classList.add('active');
+
+            // Render chapter
+            if (allChapters[idx]) {
+                renderChapter(idx, allChapters[idx]);
+            }
+        }
+
+        function renderChapter(idx, chapter) {
+            var contentEl = document.getElementById('script-content');
+            var html = '';
+
+            html += '<h1>' + escapeHtml(chapter.title || '第' + (idx + 1) + '章') + '</h1>';
+
+            // Chapter summary if available
+            if (chapter.summary) {
+                html += '<div class="shot-scene-desc">' + escapeHtml(chapter.summary) + '</div>';
+            }
+
+            // Render scenes/shots if available
+            if (chapter.scenes && chapter.scenes.length > 0) {
+                chapter.scenes.forEach(function(scene, si) {
+                    html += '<div class="shot-card" id="shot-' + idx + '-' + si + '">';
+                    html += '<div class="shot-header">';
+                    html += '<span class="shot-label">&#127917; ' + escapeHtml(scene.label || '第' + (si + 1) + '镜') + '</span>';
+                    html += '</div>';
+
+                    // Scene description
+                    if (scene.sceneDesc) {
+                        html += '<div class="shot-scene-desc">' + escapeHtml(scene.sceneDesc) + '</div>';
+                    }
+
+                    // Action description
+                    if (scene.action) {
+                        html += '<div class="shot-action-block">';
+                        html += '<div class="shot-action-desc">' + escapeHtml(scene.action) + '</div>';
+                        html += '</div>';
+                    }
+
+                    // Dialogue lines
+                    if (scene.dialogues && scene.dialogues.length > 0) {
+                        scene.dialogues.forEach(function(d) {
+                            html += '<div class="shot-dialogue">';
+                            if (d.speaker) {
+                                html += '<div class="speaker">' + escapeHtml(d.speaker) + '</div>';
+                            }
+                            html += '<div>' + escapeHtml(d.line || d.content || '') + '</div>';
+                            html += '</div>';
+                        });
+                    }
+
+                    // Camera notes
+                    if (scene.cameraNotes) {
+                        html += '<div class="shot-camera-notes">' + escapeHtml(scene.cameraNotes) + '</div>';
+                    }
+
+                    html += '</div>';
+                });
+            } else if (chapter.content) {
+                // Raw markdown content
+                html += '<div class="script-content">' + formatMarkdownContent(chapter.content) + '</div>';
+            }
+
+            contentEl.innerHTML = html;
+            contentEl.dataset.rawContent = chapter.content || '';
+            contentEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderSingleContent(content) {
+            var contentEl = document.getElementById('script-content');
+            var chapterNav = document.getElementById('chapter-nav-list');
+
+            // Hide chapter nav for single content
+            chapterNav.innerHTML = '<li class="chapter-nav-item active"><span class="chapter-num">1</span><span>完整剧本</span></li>';
+
+            contentEl.innerHTML = '<div class="script-content">' + formatMarkdownContent(content) + '</div>';
+            contentEl.dataset.rawContent = content;
+        }
+
+        function renderEmpty() {
+            document.getElementById('script-content').innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-icon">&#128214;</div>' +
+                    '<p>暂无剧本内容</p>' +
+                    '<p class="text-sm text-muted">启动工作流后，完成剧本生成步骤即可在此查看完整剧本。</p>' +
+                    '<div class="empty-action">' +
+                        '<button class="btn btn-primary btn-sm" onclick="loadScriptContent()">&#128260; 刷新剧本</button>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        function formatMarkdownContent(content) {
+            if (!content) return '';
+            return content
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^---$/gm, '<span class="scene-marker"></span>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Override doExport to use proper projectId
+        var _originalDoExport = doExport;
+        doExport = function(format) {
+            var selector = document.querySelector('.export-selector.open');
+            if (selector) selector.classList.remove('open');
+
+            // Try structured chapters first
+            var content = '';
+            if (allChapters.length > 0) {
+                content = allChapters.map(function(ch, i) {
+                    var chContent = '# ' + (ch.title || '第' + (i+1) + '章') + '\n\n';
+                    if (ch.summary) chContent += ch.summary + '\n\n';
+                    if (ch.scenes) {
+                        ch.scenes.forEach(function(scene) {
+                            chContent += '## ' + (scene.label || '') + '\n\n';
+                            if (scene.sceneDesc) chContent += scene.sceneDesc + '\n\n';
+                            if (scene.action) chContent += scene.action + '\n\n';
+                            if (scene.dialogues) {
+                                scene.dialogues.forEach(function(d) {
+                                    chContent += (d.speaker ? d.speaker + '：' : '') + (d.line || d.content || '') + '\n\n';
+                                });
+                            }
+                            if (scene.cameraNotes) chContent += '> 镜头：' + scene.cameraNotes + '\n\n';
+                        });
+                    } else if (ch.content) {
+                        chContent += ch.content + '\n\n';
+                    }
+                    return chContent;
+                }).join('\n---\n\n');
+            } else {
+                var contentEl = document.getElementById('script-content');
+                content = contentEl ? contentEl.dataset.rawContent || contentEl.innerText : '';
+            }
+
+            if (!content || content.trim() === '') {
+                showToast('没有可导出的内容', 'warning');
+                return;
+            }
+
+            exportDocument(content, format, 'script-' + projectId);
+        };
+    </script>
+</body>
+</html>

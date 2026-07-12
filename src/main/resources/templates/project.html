@@ -1,0 +1,225 @@
+ <!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目工作台 - ScriptForge</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <link rel="stylesheet" th:href="@{/css/stream-tracker.css}">
+    <link rel="stylesheet" th:href="@{/css/project.css}">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: false, theme: 'default' });</script>
+</head>
+<body>
+    <!-- Top Toolbar -->
+    <div id="ide-toolbar">
+        <a th:href="@{/}" class="toolbar-home" title="返回首页">&#127968; 首页</a>
+        <span class="toolbar-sep"></span>
+        <h2>&#9998; ScriptForge</h2>
+        <span class="game-tag" id="toolbar-game">-</span>
+        <span class="badge" id="toolbar-status">-</span>
+        <div class="toolbar-actions">
+            <a th:href="@{/knowledge}" class="toolbar-config" title="知识库" style="margin-right:0.4rem">&#128218;</a>
+            <a th:href="@{/config}" class="toolbar-config" title="系统配置">&#9881;</a>
+            <span class="toolbar-sep"></span>
+            <span id="toolbar-step-info" style="font-size:0.8rem;color:var(--muted)"></span>
+            <button class="btn btn-primary btn-sm" id="btn-start" onclick="startWorkflow(projectId)">&#9654; 启动</button>
+            <button class="btn btn-warning btn-sm" id="btn-pause" onclick="pauseWorkflow(projectId)" style="display:none">&#10074;&#10074; 暂停</button>
+            <button id="btn-chat-toggle" onclick="toggleChat()" title="ScriptForge Agent">&#129302; Agent</button>
+        </div>
+    </div>
+
+    <!-- Main Area -->
+    <div id="ide-main">
+        <!-- Left Sidebar: File Explorer -->
+        <div id="ide-sidebar">
+            <div class="sidebar-header"><span>&#128451; 资源管理器</span><button class="sidebar-toggle" onclick="toggleSidebar()" title="收起/展开侧栏">&#x2630;</button></div>
+            <!-- Tab 切换：步骤 / 文件 -->
+            <div class="sidebar-tabs">
+                <div class="sidebar-tab active" onclick="switchSidebarTab('steps')">&#128204; 步骤</div>
+                <div class="sidebar-tab" onclick="switchSidebarTab('files')">&#128193; 文件</div>
+            </div>
+            <div class="file-tree" id="file-tree">
+                <!-- 欢迎 -->
+                <div class="tree-home active" onclick="openFile('welcome', '&#127968;', '欢迎')" data-step="welcome">
+                    &#127968; 欢迎
+                </div>
+                <!-- 需求调研 -->
+                <div class="tree-folder" data-step="REQUIREMENT_GATHERING">
+                    <div class="tree-folder-header" onclick="toggleFolder(this)">
+                        <span class="folder-arrow">&#9660;</span><span class="folder-dot"></span>&#128269; 需求调研
+                    </div>
+                    <div class="tree-folder-items">
+                        <div class="tree-file" onclick="openFile('requirement','&#128196;','需求分析')">
+                            <span class="file-icon">&#128196;</span>需求分析
+                        </div>
+                    </div>
+                </div>
+                <!-- 信息检索 -->
+                <div class="tree-folder" data-step="SEARCH_AND_CHARACTER">
+                    <div class="tree-folder-header" onclick="toggleFolder(this)">
+                        <span class="folder-arrow">&#9660;</span><span class="folder-dot"></span>&#128300; 信息检索
+                    </div>
+                    <div class="tree-folder-items">
+                        <div class="tree-file" onclick="openFile('search','&#127760;','调研报告')">
+                            <span class="file-icon">&#127760;</span>调研报告
+                        </div>
+                    </div>
+                </div>
+                <!-- 大纲设计 -->
+                <div class="tree-folder" data-step="OUTLINE_DESIGN">
+                    <div class="tree-folder-header" onclick="toggleFolder(this)">
+                        <span class="folder-arrow">&#9660;</span><span class="folder-dot"></span>&#128214; 大纲设计
+                    </div>
+                    <div class="tree-folder-items">
+                        <div class="tree-file" onclick="openFile('outline','&#128196;','大纲方案')">
+                            <span class="file-icon">&#128196;</span>大纲方案
+                        </div>
+                    </div>
+                </div>
+                <!-- 剧本生成 -->
+                <div class="tree-folder" data-step="SCRIPT_GENERATION">
+                    <div class="tree-folder-header" onclick="toggleFolder(this)">
+                        <span class="folder-arrow">&#9660;</span><span class="folder-dot"></span>&#127917; 剧本生成
+                    </div>
+                    <div class="tree-folder-items">
+                        <div class="tree-file" onclick="openFile('script','&#128196;','完整剧本')">
+                            <span class="file-icon">&#128196;</span>完整剧本
+                        </div>
+                    </div>
+                </div>
+                <!-- 质量审核 -->
+                <div class="tree-folder" data-step="QUALITY_REVIEW">
+                    <div class="tree-folder-header" onclick="toggleFolder(this)">
+                        <span class="folder-arrow">&#9660;</span><span class="folder-dot"></span>&#128202; 质量审核
+                    </div>
+                    <div class="tree-folder-items">
+                        <div class="tree-file" onclick="openFile('review','&#128196;','审核报告')">
+                            <span class="file-icon">&#128196;</span>审核报告
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 真实文件树（默认隐藏） -->
+            <div id="file-tree-real" style="display:none;"></div>
+        </div>
+        <!-- 侧边栏收起后的恢复按钮（浮在 ide-main 左侧） -->
+        <button class="sidebar-expand-btn" onclick="toggleSidebar()" title="展开工作流步骤栏">&#9654;</button>
+
+        <!-- Center Editor -->
+        <div id="ide-editor">
+            <div class="editor-tabs" id="editor-tabs">
+                <div class="editor-tab active" data-tab="welcome">
+                    <span class="tab-icon">&#127968;</span>欢迎
+                </div>
+            </div>
+            <div class="editor-body" id="editor-body">
+                <div class="placeholder" id="welcome-view">
+                    <div class="big-icon">&#9998;</div>
+                    <p style="font-size:1.1rem;font-weight:500;" id="welcome-title">正在加载项目...</p>
+                    <p class="text-sm text-muted" id="welcome-sub">工作流将自动启动</p>
+                </div>
+                <!-- 流式跟踪器专用容器 -->
+                <div id="stream-tracker-container" style="display:none;"></div>
+                <div id="content-requirement" style="display:none;"></div>
+                <div id="content-search" style="display:none;"></div>
+                <div id="content-outline" style="display:none;"></div>
+                <div id="content-script" style="display:none;"></div>
+                <div id="content-review" style="display:none;"></div>
+                <div id="content-complete" style="display:none;">
+                    <div class="flex gap-2 flex-wrap mt-2">
+                        <a th:href="@{/projects/{id}/script-viewer(id=${projectId})}" class="btn btn-primary">&#127917; 查看完整剧本</a>
+                        <a th:href="@{/projects/{id}/review-report(id=${projectId})}" class="btn">&#128202; 查看审核报告</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel (Right Sidebar) — ScriptForge Solo Agent -->
+        <div id="ide-chat" class="collapsed">
+            <div class="chat-header">
+                <span>&#129302; ScriptForge Agent</span>
+                <span style="display:flex;align-items:center;gap:0.4rem;">
+                    <button class="chat-header-btn" onclick="newChat()" title="新对话">+</button>
+                    <button class="chat-header-btn" onclick="toggleHistoryPanel()" title="历史会话">&#128196;</button>
+                    <button class="chat-header-btn" onclick="restoreChat()" title="恢复撤回">&#8634;</button>
+                    <span class="agent-badge">solo</span>
+                    <button class="chat-close" onclick="toggleChat()" title="收起">&times;</button>
+                </span>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-empty">
+                    <div class="chat-empty-icon">&#129302;</div>
+                    <p>ScriptForge Agent 已就绪</p>
+                    <p style="font-size:0.7rem;">试试说：帮我创建一个鸣潮的二创项目</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="输入指令，如：列出所有项目..."
+                       onkeydown="if(event.key==='Enter')sendChat()">
+                <button id="btn-chat-send" onclick="sendChat()">发送</button>
+            </div>
+        </div>
+        <button class="chat-expand-btn" onclick="toggleChat()" title="打开 ScriptForge Agent">ScriptForge Agent</button>
+    </div>
+
+    <!-- History Sidebar Panel (left slide-out overlay) -->
+    <div id="chat-history-backdrop" onclick="toggleHistoryPanel()"></div>
+    <div id="chat-history-panel">
+        <div class="history-header">
+            <h3>&#128196; 历史会话</h3>
+            <button onclick="toggleHistoryPanel()" title="关闭">&times;</button>
+        </div>
+        <div class="history-list" id="history-list">
+            <div class="history-empty">暂无历史会话</div>
+        </div>
+    </div>
+
+    <!-- Revert Confirmation Modal -->
+    <div id="revert-modal-backdrop">
+        <div id="revert-modal">
+            <h3><span class="rm-warn">&#9888;</span> 确认回退</h3>
+            <p>回退到此轮后，此轮及之后的所有对话将被撤销（可在历史会话中恢复）。</p>
+            <div class="rm-affected" id="rm-affected-list"></div>
+            <div class="rm-actions">
+                <button class="rm-cancel" onclick="closeRevertModal()">取消</button>
+                <button class="rm-confirm" id="rm-confirm-btn" onclick="confirmRevert()">确认回退</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel Resize Handle -->
+    <div class="panel-resize-handle" id="panel-resize-handle" title="拖拽调整面板高度"></div>
+    <!-- Bottom Panel: Logs -->
+    <div id="ide-panel" class="open">
+        <div class="panel-header" onclick="togglePanel()">
+            <span>&#128220; 输出</span>
+            <div style="display:flex;gap:0.5rem;">
+                <button class="btn btn-ghost btn-sm" id="btn-auto-scroll" onclick="event.stopPropagation();toggleAutoScroll()" style="color:var(--primary)">&#8595; 实时跟随</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();clearLog()">清除</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();togglePanel()" title="收起/展开" style="font-size:1rem;">&#9650;</button>
+            </div>
+        </div>
+        <div class="panel-body" id="panel-body">
+            <div class="log-entry log-info"><span class="log-time">--:--</span>等待工作流启动...</div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="ide-statusbar">
+        <div class="status-left">
+            <span id="status-step">就绪</span>
+            <span style="cursor:pointer;margin-left:0.5rem;font-size:0.7rem;opacity:0.7;" id="btn-follow" onclick="toggleAutoFollow()">&#8595; 自动跟随</span>
+        </div>
+        <div class="status-right">
+            <div class="status-progress"><div class="status-progress-fill" id="status-progress-fill" style="width:0%"></div></div>
+            <span id="status-pct">0%</span>
+            <span id="status-time"></span>
+        </div>
+    </div>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script th:src="@{/js/stream-tracker.js}"></script>
+    <script th:src="@{/js/project.js}"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptForge - 首页</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">
+            <div class="logo-icon">&#9998;</div>
+            <h1>ScriptForge</h1>
+        </div>
+        <nav>
+            <a th:href="@{/}" class="active">首页</a>
+            <a th:href="@{/knowledge}">知识库</a>
+            <a th:href="@{/config}">系统配置</a>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- Hero区域 -->
+        <div class="card card-accent" style="text-align:center; padding:2rem 1.5rem;">
+            <h2 style="font-size:1.5rem; margin-bottom:0.5rem;">&#127912; 二游二创剧本生成系统</h2>
+            <p class="text-muted mb-2">基于AI的多Agent协作系统，从创意到完整分镜剧本全流程自动化</p>
+            <div class="flex-center gap-2 mt-1">
+                <span class="badge badge-primary">需求调研</span>
+                <span class="text-muted">&#8594;</span>
+                <span class="badge badge-primary">大纲设计</span>
+                <span class="text-muted">&#8594;</span>
+                <span class="badge badge-primary">大纲选择</span>
+                <span class="text-muted">&#8594;</span>
+                <span class="badge badge-primary">剧本生成</span>
+                <span class="text-muted">&#8594;</span>
+                <span class="badge badge-primary">质量审核</span>
+            </div>
+        </div>
+
+        <div class="layout-two-col">
+            <!-- 创建新项目 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>+ 创建新项目</h2>
+                </div>
+                <div class="form-group">
+                    <label>项目标题</label>
+                    <input type="text" id="project-title" class="form-input"
+                           placeholder="例如：让钟离和雷电将军在璃月港相遇"
+                           onkeydown="if(event.key==='Enter')createProject()">
+                </div>
+                <div class="form-group">
+                    <label>目标游戏</label>
+                    <input type="text" id="project-game" class="form-input"
+                           placeholder="例如：原神"
+                           list="home-game-suggestions">
+                    <datalist id="home-game-suggestions">
+                        <option value="原神">
+                        <option value="崩坏：星穹铁道">
+                        <option value="绝区零">
+                        <option value="明日方舟">
+                        <option value="崩坏3rd">
+                    </datalist>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="createProject()">&#10003; 创建项目</button>
+            </div>
+
+            <!-- 项目列表 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2>&#128194; 项目列表</h2>
+                    <button class="btn btn-ghost btn-xs" onclick="loadProjectList()">&#128260; 刷新</button>
+                </div>
+                <div id="project-list">
+                    <p class="text-muted text-sm">正在加载...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjectList();
+        });
+    </script>
+</body>
+</html>

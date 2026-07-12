@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScriptForge - 系统配置</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .config-section { margin-bottom: 1.5rem; }
+        .config-section-title {
+            font-size: 1rem; font-weight: 600; color: var(--primary-light);
+            padding: 0.5rem 0; border-bottom: 1px solid var(--divider);
+            margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .config-section-title .icon { opacity: 0.7; }
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1.25rem; }
+        .config-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .config-group {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 0.65rem 0.85rem;
+        }
+        .config-group label {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .config-group input, .config-group select {
+            width: 100%;
+            padding: 0.4rem 0.6rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: "Cascadia Code","Fira Code",monospace;
+            transition: var(--transition);
+        }
+        .config-group input:focus, .config-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(99,102,241,0.12);
+        }
+        .config-group .hint {
+            font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem;
+        }
+        .config-sub {
+            margin-left: 1rem; padding-left: 0.75rem;
+            border-left: 2px solid var(--border);
+        }
+        .config-sub-title {
+            font-size: 0.78rem; color: var(--text-secondary);
+            margin: 0.5rem 0 0.4rem; font-weight: 500;
+        }
+        .save-bar {
+            position: sticky; bottom: 0; z-index: 50;
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: var(--radius); padding: 0.8rem 1.25rem;
+            margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.3);
+        }
+        .save-bar .save-status { font-size: 0.85rem; flex: 1; }
+        .save-bar .save-status.success { color: #4ade80; }
+        .save-bar .save-status.error { color: #f87171; }
+        .save-bar .save-status.saving { color: #fbbf24; }
+        @media (max-width: 768px) {
+            .config-grid, .config-grid-3 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">
+            <div class="logo-icon">&#9998;</div>
+            <h1>ScriptForge</h1>
+        </div>
+        <nav>
+            <a th:href="@{/}">首页</a>
+            <a th:href="@{/knowledge}">知识库</a>
+            <a th:href="@{/config}" class="active">系统配置</a>
+        </nav>
+    </header>
+
+    <main class="container-wide">
+        <div class="card card-accent" style="text-align:center; padding:1.25rem 1.5rem;">
+            <h2 style="font-size:1.2rem; margin-bottom:0.3rem;">&#9881; 系统配置管理</h2>
+            <p class="text-muted" style="font-size:0.82rem;">在线编辑 application.yml，修改后需重启服务生效</p>
+        </div>
+
+        <form id="config-form">
+            <!-- 服务器 -->
+            <div class="card">
+                <div class="config-section-title"><span class="icon">&#127760;</span> 服务器配置</div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label>端口号</label>
+                        <input name="server.port" type="number" placeholder="8080">
+                        <div class="hint">服务监听端口，默认 8080</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据库 -->
+            <div class="card">
+                <div class="config-section-title"><span class="icon">&#128451;</span> 数据库配置 (H2)</div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label>JDBC URL</label>
+                        <input name="spring.datasource.url" type="text" placeholder="jdbc:h2:file:./data/scriptforge">
+                        <div class="hint">H2 文件模式连接地址</div>
+                    </div>
+                    <div class="config-group">
+                        <label>用户名</label>
+                        <input name="spring.datasource.username" type="text" placeholder="sa">
+                    </div>
+                    <div class="config-group">
+                        <label>密码</label>
+                        <input name="spring.datasource.password" type="text" placeholder="（空）">
+                    </div>
+                    <div class="config-group">
+                        <label>H2 Console 路径</label>
+                        <input name="spring.h2.console.path" type="text" placeholder="/h2-console">
+                    </div>
+                </div>
+                <div class="config-sub-title">JPA / Hibernate</div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label>DDL 策略</label>
+                        <select name="spring.jpa.hibernate.dll-auto">
+                            <option value="update">update</option>
+                            <option value="create">create</option>
+                            <option value="create-drop">create-drop</option>
+                            <option value="validate">validate</option>
+                            <option value="none">none</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label>显示 SQL</label>
+                        <select name="spring.jpa.show-sql">
+                            <option value="false">false</option>
+                            <option value="true">true</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DeepSeek API -->
+            <div class="card">
+                <div class="config-section-title"><span class="icon">&#129302;</span> DeepSeek API 配置</div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label>API Key</label>
+                        <input name="deepseek.api-key" type="text" placeholder="sk-...">
+                        <div class="hint">DeepSeek API 密钥（支持 Jasypt 加密）</div>
+                    </div>
+                    <div class="config-group">
+                        <label>Base URL</label>
+                        <input name="deepseek.base-url" type="text" placeholder="https://api.deepseek.com">
+                    </div>
+                    <div class="config-group">
+                        <label>最大重试次数</label>
+                        <input name="deepseek.max-retries" type="number" placeholder="3">
+                    </div>
+                </div>
+                <div class="config-sub-title">Chat 模型</div>
+                <div class="config-grid config-grid-3">
+                    <div class="config-group">
+                        <label>模型名称</label>
+                        <input name="deepseek.chat.model" type="text" placeholder="deepseek-chat">
+                    </div>
+                    <div class="config-group">
+                        <label>最大 Token</label>
+                        <input name="deepseek.chat.max-tokens" type="number" placeholder="4096">
+                    </div>
+                    <div class="config-group">
+                        <label>Temperature</label>
+                        <input name="deepseek.chat.temperature" type="number" step="0.1" min="0" max="2" placeholder="0.7">
+                    </div>
+                    <div class="config-group">
+                        <label>超时(秒)</label>
+                        <input name="deepseek.chat.timeout-seconds" type="number" placeholder="60">
+                    </div>
+                </div>
+                <div class="config-sub-title">Embedding 模型</div>
+                <div class="config-grid">
+                    <div class="config-group">
+                        <label>模型名称</label>
+                        <input name="deepseek.embedding.model" type="text" placeholder="deepseek-embed">
+                    </div>
+                    <div class="config-group">
+                        <label>超时(秒)</label>
+                        <input name="deepseek.embedding.timeout-seconds" type="number" placeholder="30">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 向量数据库 -->
+            <div class="card">
+                <div class="config-section-title"><span class="icon">&#128202;</span> 向量数据库 (Lucene)</div>
+                <div class="config-grid config-grid-3">
+                    <div class="config-group">
+                        <label>索引目录</label>
+                        <input name="vector-db.index-dir" type="text" placeholder="./data/lucene-index">
+                    </div>
+                    <div class="config-group">
+                        <label>向量维度</label>
+                        <input name="vector-db.dimension" type="number" placeholder="1024">
+                    </div>
+                    <div class="config-group">
+                        <label>HNSW M 参数</label>
+                        <input name="vector-db.hnsw.m" type="number" placeholder="16">
+                    </div>
+                    <div class="config-group">
+                        <label>HNSW efConstruction</label>
+                        <input name="vector-db.hnsw.ef-construction" type="number" placeholder="200">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 应用 -->
+            <div class="card">
+                <div class="config-section-title"><span class="icon">&#128736;</span> 应用配置</div>
+                <div class="config-grid config-grid-3">
+                    <div class="config-group">
+                        <label>应用名称</label>
+                        <input name="app.name" type="text" placeholder="ScriptForge">
+                    </div>
+                    <div class="config-group">
+                        <label>版本</label>
+                        <input name="app.version" type="text" placeholder="1.0.0">
+                    </div>
+                    <div class="config-group">
+                        <label>导出目录</label>
+                        <input name="app.export-dir" type="text" placeholder="./exports">
+                    </div>
+                    <div class="config-group">
+                        <label>最大大纲版本数</label>
+                        <input name="app.max-outline-versions" type="number" placeholder="3">
+                    </div>
+                    <div class="config-group">
+                        <label>每大纲最少章节</label>
+                        <input name="app.min-chapters-per-outline" type="number" placeholder="3">
+                    </div>
+                    <div class="config-group">
+                        <label>最大并发项目</label>
+                        <input name="app.max-concurrent-projects" type="number" placeholder="3">
+                    </div>
+                    <div class="config-group">
+                        <label>磁盘最小空间(GB)</label>
+                        <input name="app.disk-space-min-gb" type="number" placeholder="2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 保存栏 -->
+            <div class="save-bar">
+                <span class="save-status" id="save-status"></span>
+                <button type="button" class="btn btn-outline" onclick="resetForm()">&#8634; 重置</button>
+                <button type="submit" class="btn btn-primary">&#128190; 保存配置</button>
+            </div>
+        </form>
+
+        <div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.8rem;">
+            提示：修改配置后需要重启服务才能生效。保存操作会直接写入 src/main/resources/application.yml
+        </div>
+    </main>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        // ----- 扁平化 YAML Map 到表单 key -----
+        function flattenYaml(obj, prefix) {
+            prefix = prefix || '';
+            var result = {};
+            for (var key in obj) {
+                if (!obj.hasOwnProperty(key)) continue;
+                var fullKey = prefix ? prefix + '.' + key : key;
+                var val = obj[key];
+                if (val !== null && typeof val === 'object' && !Array.isArray(val)) {
+                    var isLeafObject = true;
+                    for (var subKey in val) {
+                        if (val.hasOwnProperty(subKey) && typeof val[subKey] === 'object' && !Array.isArray(val[subKey])) {
+                            isLeafObject = false;
+                            break;
+                        }
+                    }
+                    if (isLeafObject) {
+                        Object.assign(result, flattenYaml(val, fullKey));
+                    } else {
+                        Object.assign(result, flattenYaml(val, fullKey));
+                    }
+                } else {
+                    result[fullKey] = val;
+                }
+            }
+            return result;
+        }
+
+        // ----- 从扁平 key 重建嵌套 Map -----
+        function unflattenToMap(flat) {
+            var result = {};
+            var keys = Object.keys(flat).sort();
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                var parts = key.split('.');
+                var val = flat[key];
+                var current = result;
+                for (var j = 0; j < parts.length - 1; j++) {
+                    if (!current[parts[j]]) current[parts[j]] = {};
+                    current = current[parts[j]];
+                }
+                var last = parts[parts.length - 1];
+                if (val === 'true') val = true;
+                else if (val === 'false') val = false;
+                else if (/^\d+$/.test(val)) val = parseInt(val, 10);
+                else if (/^\d+\.\d+$/.test(val)) val = parseFloat(val);
+                current[last] = val;
+            }
+            return result;
+        }
+
+        // ----- 加载配置填充表单 -----
+        function loadConfig() {
+            fetch('/api/config')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var flat = flattenYaml(data);
+                    for (var key in flat) {
+                        if (!flat.hasOwnProperty(key)) continue;
+                        var el = document.querySelector('[name="' + CSS.escape(key) + '"]');
+                        if (el) {
+                            el.value = flat[key] !== null && flat[key] !== undefined ? flat[key] : '';
+                        }
+                    }
+                })
+                .catch(function(e) {
+                    document.getElementById('save-status').textContent = '加载配置失败: ' + e.message;
+                    document.getElementById('save-status').className = 'save-status error';
+                });
+        }
+
+        // ----- 保存配置 -----
+        document.getElementById('config-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var status = document.getElementById('save-status');
+            status.textContent = '正在保存...';
+            status.className = 'save-status saving';
+
+            var flat = {};
+            var inputs = this.querySelectorAll('input, select');
+            inputs.forEach(function(el) {
+                if (el.name) {
+                    flat[el.name] = el.value;
+                }
+            });
+
+            var configMap = unflattenToMap(flat);
+
+            fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(configMap)
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.status === 'success') {
+                    status.textContent = '已' + res.message;
+                    status.className = 'save-status success';
+                } else {
+                    status.textContent = res.message;
+                    status.className = 'save-status error';
+                }
+            })
+            .catch(function(err) {
+                status.textContent = '保存失败: ' + err.message;
+                status.className = 'save-status error';
+            });
+        });
+
+        // ----- 重置 -----
+        function resetForm() {
+            loadConfig();
+            document.getElementById('save-status').textContent = '';
+            document.getElementById('save-status').className = 'save-status';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>

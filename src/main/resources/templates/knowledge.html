@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识库管理 - ScriptForge</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">
+            <div class="logo-icon">&#9998;</div>
+            <h1>ScriptForge</h1>
+        </div>
+        <nav>
+            <a th:href="@{/}">首页</a>
+            <a th:href="@{/knowledge}" class="active">知识库</a>
+            <a th:href="@{/config}">系统配置</a>
+        </nav>
+    </header>
+
+    <main class="container-wide">
+        <div class="layout-main-side">
+            <!-- 左侧：条目列表 -->
+            <div>
+                <!-- 标题 + 统计 -->
+                <div class="card card-sm card-accent">
+                    <div class="flex-between flex-wrap gap-1">
+                        <div>
+                            <h2 style="margin-bottom:0.15rem;">&#128218; 知识库管理</h2>
+                            <span class="text-xs text-muted" id="kb-entry-count">0 条</span>
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('kb-form-card').scrollIntoView({behavior:'smooth'})">
+                            + 新增条目
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 搜索 + 筛选栏 -->
+                <div class="card card-sm">
+                    <div class="kb-toolbar">
+                        <div class="search-box" style="flex:1; min-width:200px;">
+                            <span class="search-icon">&#128269;</span>
+                            <input type="text" id="kb-search" class="form-input"
+                                   placeholder="搜索条目标题..." oninput="debounce(searchKnowledge, 300)()">
+                        </div>
+                        <select id="kb-game-filter" class="form-select game-filter-select" onchange="searchKnowledge()">
+                            <option value="">全部游戏</option>
+                        </select>
+                    </div>
+                    <!-- 游戏筛选芯片 -->
+                    <div class="kb-game-selector" id="kb-game-chips">
+                        <span class="kb-game-chip active" data-game="" onclick="filterByGame('')">全部</span>
+                    </div>
+                </div>
+
+                <!-- 条目列表 -->
+                <div class="card" id="kb-list-card">
+                    <div id="kb-entry-list">
+                        <div class="text-center mt-2">
+                            <div class="spinner"></div>
+                            <p class="text-sm text-muted mt-1">正在加载知识库...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：新增条目表单 -->
+            <div class="sticky-top">
+                <div class="card" id="kb-form-card">
+                    <div class="card-header">
+                        <h2>+ 新增知识库条目</h2>
+                    </div>
+                    <div class="form-group">
+                        <label>游戏名称 *</label>
+                        <input type="text" id="kg-game" class="form-input"
+                               placeholder="例如：原神、崩坏：星穹铁道" list="kg-game-suggestions">
+                        <datalist id="kg-game-suggestions">
+                            <!-- 动态填充常用游戏名 -->
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>条目类型 *</label>
+                        <select id="kg-type" class="form-select">
+                            <option value="CHARACTER">&#128100; 角色</option>
+                            <option value="LORE">&#127758; 世界观/传说</option>
+                            <option value="EVENT">&#128161; 事件</option>
+                            <option value="MECHANICS">&#9881; 游戏机制</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>条目标题 *</label>
+                        <input type="text" id="kg-title" class="form-input"
+                               placeholder="例如：钟离">
+                    </div>
+                    <div class="form-group">
+                        <label>内容（Markdown格式） *</label>
+                        <textarea id="kg-content" class="form-textarea" rows="8"
+                                  placeholder="条目的结构化内容...&#10;&#10;例如角色信息：&#10;- 身份：璃月港往生堂客卿&#10;- 性格：沉稳、博学、契约至上&#10;- 故事背景：..."></textarea>
+                        <div class="form-hint">支持 Markdown 格式：**加粗**、- 列表、> 引用等</div>
+                    </div>
+                    <div class="form-group">
+                        <label>来源URL（可选）</label>
+                        <input type="text" id="kg-url" class="form-input"
+                               placeholder="wiki链接、米游社文章等">
+                        <div class="form-hint">用于记录信息来源，方便后续核实</div>
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="saveKnowledgeEntry()">
+                        &#10003; 保存条目
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadKnowledgeEntries();
+
+            // Setup debounced search
+            var searchInput = document.getElementById('kb-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(searchKnowledge, 300));
+            }
+        });
+
+        // Populate game suggestions after loading entries
+        var _originalRenderEntries = renderKnowledgeEntries;
+        renderKnowledgeEntries = function(entries) {
+            _originalRenderEntries(entries);
+
+            // Populate game datalist
+            var games = new Set();
+            entries.forEach(function(e) {
+                if (e.gameName) games.add(e.gameName);
+            });
+            var datalist = document.getElementById('kg-game-suggestions');
+            if (datalist) {
+                datalist.innerHTML = Array.from(games).sort().map(function(g) {
+                    return '<option value="' + escapeHtml(g) + '">';
+                }).join('');
+            }
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>审核报告 - ScriptForge</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-logo">
+            <div class="logo-icon">&#9998;</div>
+            <h1>ScriptForge</h1>
+        </div>
+        <nav>
+            <a th:href="@{/}">首页</a>
+            <a th:href="@{/projects/{id}(id=${projectId})}">返回项目</a>
+            <a th:href="@{/knowledge}">知识库</a>
+            <a th:href="@{/config}">系统配置</a>
+        </nav>
+    </header>
+
+    <main class="container-wide">
+        <!-- 页面标题 -->
+        <div class="card card-accent card-sm">
+            <div class="flex-between flex-wrap gap-2">
+                <div>
+                    <h2 style="margin-bottom:0;">&#128202; 审核报告</h2>
+                    <span class="text-xs text-muted" id="rr-project-title">加载中...</span>
+                </div>
+                <span class="badge badge-primary">步骤 5/6</span>
+            </div>
+        </div>
+
+        <!-- 综合评分区域 -->
+        <div class="card" id="review-summary-card">
+            <div class="review-summary" id="review-score-area">
+                <!-- 左侧：进度环 -->
+                <div id="score-ring-container"></div>
+                <!-- 右侧：维度评分 -->
+                <div>
+                    <h3 style="margin-bottom:0.75rem;">综合评估</h3>
+                    <div class="review-dimensions" id="review-dimensions">
+                        <div class="review-dim-item">
+                            <div class="dim-label">人物OOC</div>
+                            <div class="dim-score" id="dim-ooc">-</div>
+                        </div>
+                        <div class="review-dim-item">
+                            <div class="dim-label">逻辑一致性</div>
+                            <div class="dim-score" id="dim-logic">-</div>
+                        </div>
+                        <div class="review-dim-item">
+                            <div class="dim-label">节奏评估</div>
+                            <div class="dim-score" id="dim-pacing">-</div>
+                        </div>
+                    </div>
+                    <div id="review-overall-comment" class="text-sm text-muted mt-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 批量操作栏 -->
+        <div class="batch-fix-bar" id="batch-fix-bar" style="display:none;">
+            <div class="batch-fix-info">
+                <span id="batch-fix-count">0</span> 个问题可供修复
+            </div>
+            <div class="batch-fix-actions">
+                <button class="btn btn-primary btn-sm" onclick="applyAllFixes()">&#9889; 一键应用全部修改</button>
+            </div>
+        </div>
+
+        <!-- 问题Tab面板 -->
+        <div class="card" id="review-issues-card">
+            <div class="tabs">
+                <div class="tab-item active" data-tab="ooc" onclick="switchTab('ooc')">
+                    人物OOC <span class="tab-count" id="count-ooc">0</span>
+                </div>
+                <div class="tab-item" data-tab="logic" onclick="switchTab('logic')">
+                    逻辑问题 <span class="tab-count" id="count-logic">0</span>
+                </div>
+                <div class="tab-item" data-tab="pacing" onclick="switchTab('pacing')">
+                    节奏评估 <span class="tab-count" id="count-pacing">0</span>
+                </div>
+            </div>
+
+            <!-- OOC面板 -->
+            <div class="tab-panel active" id="tab-ooc">
+                <div class="empty-state" id="empty-ooc">
+                    <div class="empty-icon">&#128522;</div>
+                    <p>未发现人物OOC问题</p>
+                    <p class="text-sm text-muted">角色行为和性格符合原作设定</p>
+                </div>
+                <div class="review-issue-list" id="issues-ooc"></div>
+            </div>
+
+            <!-- 逻辑面板 -->
+            <div class="tab-panel" id="tab-logic">
+                <div class="empty-state" id="empty-logic">
+                    <div class="empty-icon">&#9989;</div>
+                    <p>未发现逻辑一致性问题</p>
+                    <p class="text-sm text-muted">剧情逻辑连贯，无矛盾之处</p>
+                </div>
+                <div class="review-issue-list" id="issues-logic"></div>
+            </div>
+
+            <!-- 节奏面板 -->
+            <div class="tab-panel" id="tab-pacing">
+                <div class="empty-state" id="empty-pacing">
+                    <div class="empty-icon">&#127925;</div>
+                    <p>未发现节奏问题</p>
+                    <p class="text-sm text-muted">剧情节奏张弛有度</p>
+                </div>
+                <!-- 节奏可视化 -->
+                <div id="pacing-chart-container" class="mt-2"></div>
+                <div class="review-issue-list mt-2" id="issues-pacing"></div>
+            </div>
+        </div>
+    </main>
+
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        var projectId = /*[[${projectId}]]*/ 0;
+        var allIssues = { ooc: [], logic: [], pacing: [] };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadReviewProject();
+            loadReviewReport();
+        });
+
+        function loadReviewProject() {
+            fetch('/api/projects/' + projectId)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.code === 0) {
+                        document.getElementById('rr-project-title').textContent =
+                            (data.data.title || '-') + ' | ' + (data.data.gameName || '-');
+                    }
+                });
+        }
+
+        function loadReviewReport() {
+            // Show skeleton loading
+            document.getElementById('review-score-area').innerHTML =
+                '<div class="skeleton" style="width:140px;height:140px;border-radius:50%;"></div>' +
+                '<div><div class="skeleton" style="height:20px;width:120px;margin-bottom:0.75rem;"></div>' +
+                '<div class="skeleton" style="height:60px;"></div></div>';
+
+            fetch('/api/projects/' + projectId + '/reviews')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data.code === 0 && data.data) {
+                        var review = data.data;
+                        renderReviewReport(review);
+                    } else {
+                        renderEmptyReport();
+                    }
+                })
+                .catch(function(err) {
+                    document.getElementById('review-score-area').innerHTML =
+                        '<div class="empty-state"><p class="text-danger">加载失败: ' + err.message + '</p></div>';
+                });
+        }
+
+        function renderReviewReport(review) {
+            // Render score ring
+            var totalScore = review.totalScore || review.score || 0;
+            var maxScore = review.maxScore || 100;
+            renderScoreRing('score-ring-container', totalScore, maxScore);
+
+            // Render dimension scores
+            var dims = review.dimensions || {};
+            document.getElementById('dim-ooc').textContent = dims.ooc != null ? dims.ooc + '%' : '-';
+            document.getElementById('dim-logic').textContent = dims.logic != null ? dims.logic + '%' : '-';
+            document.getElementById('dim-pacing').textContent = dims.pacing != null ? dims.pacing + '%' : '-';
+
+            // Overall comment
+            if (review.comment) {
+                document.getElementById('review-overall-comment').textContent = review.comment;
+            }
+
+            // Group issues by category
+            var issues = review.issues || [];
+            allIssues = { ooc: [], logic: [], pacing: [] };
+
+            issues.forEach(function(issue) {
+                var cat = issue.category || issue.type || '';
+                if (cat === 'OOC' || cat === 'ooc') {
+                    allIssues.ooc.push(issue);
+                } else if (cat === 'LOGIC' || cat === 'logic') {
+                    allIssues.logic.push(issue);
+                } else if (cat === 'PACING' || cat === 'pacing') {
+                    allIssues.pacing.push(issue);
+                } else {
+                    // Default to logic
+                    allIssues.logic.push(issue);
+                }
+            });
+
+            // Render issues in each tab
+            renderIssueList('ooc', allIssues.ooc);
+            renderIssueList('logic', allIssues.logic);
+            renderIssueList('pacing', allIssues.pacing);
+
+            // Update tab counts
+            updateTabCounts();
+
+            // Show batch fix bar if any issues
+            var totalIssues = allIssues.ooc.length + allIssues.logic.length + allIssues.pacing.length;
+            if (totalIssues > 0) {
+                var bar = document.getElementById('batch-fix-bar');
+                bar.style.display = 'flex';
+                document.getElementById('batch-fix-count').textContent = totalIssues;
+            }
+        }
+
+        function renderIssueList(category, issues) {
+            var listEl = document.getElementById('issues-' + category);
+            var emptyEl = document.getElementById('empty-' + category);
+
+            if (issues.length === 0) {
+                if (listEl) listEl.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = '';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            var html = '';
+            issues.forEach(function(issue, idx) {
+                var severityBadge = getSeverityBadge(issue.severity);
+                var location = issue.location || issue.position || '';
+
+                html += '<div class="review-issue-card" data-issue-id="' + (issue.id || idx) + '">';
+                html += '<div class="issue-header">';
+                html += '<span class="issue-title">' + escapeHtml(issue.title || '问题 #' + (idx + 1)) + '</span>';
+                html += '<span class="badge ' + severityBadge.class + '">' + severityBadge.label + '</span>';
+                html += '</div>';
+
+                if (issue.description || issue.desc) {
+                    html += '<div class="issue-desc">' + escapeHtml(issue.description || issue.desc) + '</div>';
+                }
+
+                if (location) {
+                    html += '<div class="issue-location">&#128205; 位置：' + escapeHtml(location) + '</div>';
+                }
+
+                if (issue.suggestion || issue.fix) {
+                    html += '<div class="issue-suggestion">' + escapeHtml(issue.suggestion || issue.fix) + '</div>';
+                }
+
+                html += '<div class="fix-controls">';
+                html += '<button class="btn btn-primary btn-sm btn-apply-fix" onclick="applyFix(\'' + (issue.id || idx) + '\', this.closest(\'.review-issue-card\'))">&#10003; 应用此修改</button>';
+                html += '<span class="fix-status text-muted">待处理</span>';
+                html += '</div>';
+
+                html += '</div>';
+            });
+
+            if (listEl) listEl.innerHTML = html;
+        }
+
+        function updateTabCounts() {
+            document.getElementById('count-ooc').textContent = allIssues.ooc.length;
+            document.getElementById('count-logic').textContent = allIssues.logic.length;
+            document.getElementById('count-pacing').textContent = allIssues.pacing.length;
+        }
+
+        function getSeverityBadge(severity) {
+            var s = (severity || '').toUpperCase();
+            if (s === 'CRITICAL' || s === '高' || s === '严重') {
+                return { class: 'badge-critical', label: '严重' };
+            } else if (s === 'MODERATE' || s === '中' || s === '中等') {
+                return { class: 'badge-moderate', label: '中等' };
+            } else {
+                return { class: 'badge-minor', label: '轻微' };
+            }
+        }
+
+        function renderEmptyReport() {
+            document.getElementById('review-score-area').innerHTML =
+                '<div class="review-summary" style="grid-template-columns: 1fr; text-align: center;">' +
+                    '<div class="review-score">' +
+                        '<div class="score-number">--</div>' +
+                        '<div class="score-label">暂无评分</div>' +
+                    '</div>' +
+                    '<div class="text-sm text-muted">启动工作流后，完成质量审核步骤即可在此查看审核报告。</div>' +
+                '</div>';
+
+            document.getElementById('review-dimensions').innerHTML =
+                '<div class="review-dim-item"><div class="dim-label">人物OOC</div><div class="dim-score">-</div></div>' +
+                '<div class="review-dim-item"><div class="dim-label">逻辑一致性</div><div class="dim-score">-</div></div>' +
+                '<div class="review-dim-item"><div class="dim-label">节奏评估</div><div class="dim-score">-</div></div>';
+        }
+    </script>
+</body>
+</html>
